@@ -1,24 +1,29 @@
 using CarRentService.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using CarRentService.API.Mapping;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Добавляем контекст базы данных
+// Добавляем Serilog с чтением из конфигурации
+builder.Host.UseSerilog((context, config) =>
+{
+    config.ReadFrom.Configuration(context.Configuration);
+});
+
 builder.Services.AddDbContext<CarRentDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Регистрация AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
-
-// Регистрация контроллеров и Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Настройка конвейера HTTP-запросов
+// Логируем запуск
+Log.Information("Application starting...");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -29,4 +34,15 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
